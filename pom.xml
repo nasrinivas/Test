@@ -30,6 +30,18 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+	<distributionManagement>
+		<repository>
+			<id>nexus</id>
+			<name>test nexus release repo</name>
+			<url>http://34.220.32.81:8081/repository/first-release/</url>
+	        </repository>
+		<snapshotRepository>
+			<id>nexus</id>
+			<name>test nexus snapshot repo</name>
+			<url>http://34.220.32.81:8081/repository/maven-snapshots/</url>
+	        </snapshotRepository>
+	</distributionManagement>
 
 	<build>
 		<plugins>
