@@ -14,7 +14,9 @@
 	<name>demo</name>
 	<description>Demo project for Spring Boot</description>
 	<properties>
-		<java.version>11</java.version>
+	   <sonar.host.url>https://sonarcloud.io/</sonar.host.url>
+	   <sonar.login>decbedf2e7e1a7aa3ea724057949f56b7504a82a</sonar.login>
+	   <sonar.organization>newpro</sonar.organization>
 	</properties>
 	<dependencies>
 		<dependency>
