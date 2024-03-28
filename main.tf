@@ -73,3 +73,23 @@ output "instance_id" {
   value = aws_instance.ec2[0].id
   description = "ID of the EC2 instance"
 }
+
+
+====================================================================================
+
+
+# Create EBS volume
+resource "aws_ebs_volume" "my_volume" {
+  availability_zone = var.availability_zones[0]  # Specify the availability zone where the instance is launched
+  size              = 10  # Size of the EBS volume in GiB
+  tags = {
+    Name = "MyEBSVolume"
+  }
+}
+
+# Attach EBS volume to EC2 instance
+resource "aws_volume_attachment" "ebs_attachment" {
+  device_name = "/dev/xvdf"  # Device name to attach the volume to (replace with appropriate device name)
+  volume_id   = aws_ebs_volume.my_volume.id
+  instance_id = aws_instance.ec2.id
+}
