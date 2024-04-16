@@ -1,0 +1,79 @@
+---
+- name: Mount storage to EC2 instance and format as VDO
+  hosts: your_ec2_instance
+  become: yes
+  vars:
+    volume_device: "/dev/xvdf"  # Update with the device path of the volume
+    vdo_logical_size: "100G"     # Adjust as needed
+
+  tasks:
+    - name: Install required packages
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - vdo
+        - lvm2
+
+    - name: Initialize VDO volume
+      command: vdo create --name=vdo_home --device="{{ volume_device }}" --vdoLogicalSize="{{ vdo_logical_size }}"
+      args:
+        creates: /dev/mapper/vdo_home
+
+    - name: Format VDO volume
+      filesystem:
+        fstype: ext4
+        dev: /dev/mapper/vdo_home
+
+    - name: Mount VDO volume to /home
+      mount:
+        path: /home
+        src: /dev/mapper/vdo_home
+        fstype: ext4
+        state: mounted
+        opts: defaults,noatime
+
+- name: Mount Storage and Configure VDO
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Format volume as VDO
+      command:
+        cmd: vdo create --name=my_vdo --device=/dev/sdf
+      when: ebs_volume.changed
+
+    - name: Mount VDO volume to /home
+      mount:
+        name: /home
+        src: /dev/mapper/my_vdo
+        fstype: ext4
+        opts: defaults
+        state: mounted	
+
+- name: Configure Users and SSH Keys
+  hosts: localhost
+  gather_facts: false
+  vars:
+    users:
+      - username: alice
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... (Alice's public key)"
+      - username: bob
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... (Bob's public key)"
+      # Add more users as needed
+
+  tasks:
+    - name: Create users
+      user:
+        name: "{{ item.username }}"
+        state: present
+        groups: sudo
+      with_items: "{{ users }}"
+      when: item.ssh_key is defined
+
+    - name: Add SSH keys for users
+      authorized_key:
+        user: "{{ item.username }}"
+        key: "{{ item.ssh_key }}"
+      with_items: "{{ users }}"
+      when: item.ssh_key is defined
+
