@@ -1,4 +1,36 @@
-failed: [localhost] (item={'username': 'testuser2', 'ssh_key': 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDPHxUdodIPT0jfP3AFqK9urGLc/DVJ66/DVPTgjb9/ayROTIzZZFhW+mB0y7VI6DF5a3EinsORy6xJ3zyneiBWlKCsHTR9Sy5AES+S+Ue31CUy9dBaB9HenDXELzuiOVXFjLYY+WSwFX0tFbntzQ5r2LoYeTkFXbUxEUJwkIaHWE3LOJhsz25CHRosyBX471YZG4nMdmXZz6dx9b5Oja9Qkm225heNygtSKlwI+0rKbn2pvIBCENMVj6FKYYuWFp3FoR2ByWirE/XOSmaQuQRYfZRGgG5q1laCqg3SYC8qdnSM8YfkPrrZLj0sxumgiSIkGlzAtYR4EE/fTQxpXitldDN7cKzpMoAeYyf5F4D83eSRRJNWDllV0EiNRYourCJHpAU2Lzmbe4ww8poIrVGnsCAWSVSsRfET/t/DNBoxTGl40qAlPb2KcuPzuG3NRKPZdIRLW1BHvFvVYX2CC89QUvOFN3qjPQ0lev5Dz9f5W3p8CXSV5TXfNodFu4SO1g0= jithu@LAPTOP-0UQTU4PC'}) => {"ansible_loop_var": "item", "changed": false, "gid": 0, "group": "root", "item": {"ssh_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDPHxUdodIPT0jfP3AFqK9urGLc/DVJ66/DVPTgjb9/ayROTIzZZFhW+mB0y7VI6DF5a3EinsORy6xJ3zyneiBWlKCsHTR9Sy5AES+S+Ue31CUy9dBaB9HenDXELzuiOVXFjLYY+WSwFX0tFbntzQ5r2LoYeTkFXbUxEUJwkIaHWE3LOJhsz25CHRosyBX471YZG4nMdmXZz6dx9b5Oja9Qkm225heNygtSKlwI+0rKbn2pvIBCENMVj6FKYYuWFp3FoR2ByWirE/XOSmaQuQRYfZRGgG5q1laCqg3SYC8qdnSM8YfkPrrZLj0sxumgiSIkGlzAtYR4EE/fTQxpXitldDN7cKzpMoAeYyf5F4D83eSRRJNWDllV0EiNRYourCJHpAU2Lzmbe4ww8poIrVGnsCAWSVSsRfET/t/DNBoxTGl40qAlPb2KcuPzuG3NRKPZdIRLW1BHvFvVYX2CC89QUvOFN3qjPQ0lev5Dz9f5W3p8CXSV5TXfNodFu4SO1g0= jithu@LAPTOP-0UQTU4PC", "username": "testuser2"}, "mode": "0755", "msg": "chown failed: failed to look up user testuser2", "owner": "root", "path": "/home/testuser2", "size": 4096, "state": "directory", "uid": 0}
+- name: Ensure users exist and create home directory if needed
+  hosts: localhost
+  become: yes
+  vars:
+    users:
+      - username: testuser2
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDPHxUdodIPT0jfP3AFqK9urGLc/DVJ66/DVPTgjb9/ayROTIzZZFhW+mB0y7VI6DF5a3EinsORy6xJ3zyneiBWlKCsHTR9Sy5AES+S+Ue31CUy9dBaB9HenDXELzuiOVXFjLYY+WSwFX0tFbntzQ5r2LoYeTkFXbUxEUJwkIaHWE3LOJhsz25CHRosyBX471YZG4nMdmXZz6dx9b5Oja9Qkm225heNygtSKlwI+0rKbn2pvIBCENMVj6FKYYuWFp3FoR2ByWirE/XOSmaQuQRYfZRGgG5q1laCqg3SYC8qdnSM8YfkPrrZLj0sxumgiSIkGlzAtYR4EE/fTQxpXitldDN7cKzpMoAeYyf5F4D83eSRRJNWDllV0EiNRYourCJHpAU2Lzmbe4ww8poIrVGnsCAWSVSsRfET/t/DNBoxTGl40qAlPb2KcuPzuG3NRKPZdIRLW1BHvFvVYX2CC89QUvOFN3qjPQ0lev5Dz9f5W3p8CXSV5TXfNodFu4SO1g0= jithu@LAPTOP-0UQTU4PC"
+
+  tasks:
+    - name: Create user if it doesn't exist
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        shell: /bin/bash
+        createhome: yes
+      with_items: "{{ users }}"
+
+    - name: Ensure home directory exists
+      ansible.builtin.file:
+        path: "/home/{{ item.username }}"
+        state: directory
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+      with_items: "{{ users }}"
+      when: ansible.builtin.stat(path="/home/{{ item.username }}").stat.exists == False
+
+    - name: Ensure SSH keys are added for users
+      ansible.builtin.copy:
+        dest: "/home/{{ item.username }}/.ssh/authorized_keys"
+        content: "{{ item.ssh_key }}"
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+        mode: "0600"
+      with_items: "{{ users }}"
 
 
 
