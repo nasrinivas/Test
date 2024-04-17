@@ -77,3 +77,40 @@
       with_items: "{{ users }}"
       when: item.ssh_key is defined
 
+
+---
+- name: Add users with SSH keys and sudo permissions
+  hosts: localhost
+  become: yes
+  vars:
+    users:
+      - username: user1
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB..."
+      - username: user2
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB..."
+      # Add more users as needed
+
+  tasks:
+    - name: Ensure users exist
+      user:
+        name: "{{ item.username }}"
+        shell: /bin/bash
+        createhome: yes
+      with_items: "{{ users }}"
+      when: not (item.username in lookup('pipe', 'cut -d: -f1 /etc/passwd'))
+
+    - name: Ensure SSH keys are added for users
+      authorized_key:
+        user: "{{ item.username }}"
+        key: "{{ item.ssh_key }}"
+      with_items: "{{ users }}"
+      when: not (item.username in lookup('pipe', 'cut -d: -f1 /etc/passwd'))
+
+    - name: Grant sudo permissions to users
+      lineinfile:
+        dest: /etc/sudoers
+        line: "{{ item.username }} ALL=(ALL) NOPASSWD:ALL"
+        validate: 'visudo -cf %s'
+      with_items: "{{ users }}"
+      when: not (item.username in lookup('pipe', 'cut -d: -f1 /etc/passwd'))
+
