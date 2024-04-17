@@ -193,3 +193,52 @@
 
 TASK [Add SSH keys for users] ************************************************************************************************************************************
 failed: [localhost] (item={'username': 'srinu', 'ssh_key': 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDPHxUdodIPT0jfP3AFqK9urGLc/DVJ66/DVPTgjb9/ayROTIzZZFhW+mB0y7VI6DF5a3EinsORy6xJ3zyneiBWlKCsHTR9Sy5AES+S+Ue31CUy9dBaB9HenDXELzuiOVXFjLYY+WSwFX0tFbntzQ5r2LoYeTkFXbUxEUJwkIaHWE3LOJhsz25CHRosyBX471YZG4nMdmXZz6dx9b5Oja9Qkm225heNygtSKlwI+0rKbn2pvIBCENMVj6FKYYuWFp3FoR2ByWirE/XOSmaQuQRYfZRGgG5q1laCqg3SYC8qdnSM8YfkPrrZLj0sxumgiSIkGlzAtYR4EE/fTQxpXitldDN7cKzpMoAeYyf5F4D83eSRRJNWDllV0EiNRYourCJHpAU2Lzmbe4ww8poIrVGnsCAWSVSsRfET/t/DNBoxTGl40qAlPb2KcuPzuG3NRKPZdIRLW1BHvFvVYX2CC89QUvOFN3qjPQ0lev5Dz9f5W3p8CXSV5TXfNodFu4SO1g0= jithu@LAPTOP-0UQTU4PC'}) => {"ansible_loop_var": "item", "changed": false, "item": {"ssh_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDPHxUdodIPT0jfP3AFqK9urGLc/DVJ66/DVPTgjb9/ayROTIzZZFhW+mB0y7VI6DF5a3EinsORy6xJ3zyneiBWlKCsHTR9Sy5AES+S+Ue31CUy9dBaB9HenDXELzuiOVXFjLYY+WSwFX0tFbntzQ5r2LoYeTkFXbUxEUJwkIaHWE3LOJhsz25CHRosyBX471YZG4nMdmXZz6dx9b5Oja9Qkm225heNygtSKlwI+0rKbn2pvIBCENMVj6FKYYuWFp3FoR2ByWirE/XOSmaQuQRYfZRGgG5q1laCqg3SYC8qdnSM8YfkPrrZLj0sxumgiSIkGlzAtYR4EE/fTQxpXitldDN7cKzpMoAeYyf5F4D83eSRRJNWDllV0EiNRYourCJHpAU2Lzmbe4ww8poIrVGnsCAWSVSsRfET/t/DNBoxTGl40qAlPb2KcuPzuG3NRKPZdIRLW1BHvFvVYX2CC89QUvOFN3qjPQ0lev5Dz9f5W3p8CXSV5TXfNodFu4SO1g0= jithu@LAPTOP-0UQTU4PC", "username": "srinu"}, "msg": "Failed to create directory /home/srinu/.ssh : [Errno 13] Permission denied: '/home/srinu/.ssh'"}
+
+
+---
+- name: Add users with SSH keys and sudo permissions
+  hosts: localhost
+  become: yes
+  vars:
+    users:
+      - username: user1
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB..."
+      - username: user2
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB..."
+      # Add more users as needed
+
+  tasks:
+    - name: Ensure users exist and create home directory if needed
+      block:
+        - name: Ensure users exist
+          user:
+            name: "{{ item.username }}"
+            shell: /bin/bash
+            createhome: yes
+          with_items: "{{ users }}"
+          when: not (item.username in lookup('pipe', 'cut -d: -f1 /etc/passwd'))
+
+        - name: Create home directory if it doesn't exist
+          file:
+            path: "/home/{{ item.username }}"
+            state: directory
+            owner: "{{ item.username }}"
+            group: "{{ item.username }}"
+          with_items: "{{ users }}"
+          when: not (item.username in lookup('pipe', 'cut -d: -f1 /etc/passwd'))
+
+        - name: Ensure SSH keys are added for users
+          authorized_key:
+            user: "{{ item.username }}"
+            key: "{{ item.ssh_key }}"
+          with_items: "{{ users }}"
+          when: not (item.username in lookup('pipe', 'cut -d: -f1 /etc/passwd'))
+      become: yes
+
+    - name: Grant sudo permissions to users
+      lineinfile:
+        dest: /etc/sudoers
+        line: "{{ item.username }} ALL=(ALL) NOPASSWD:ALL"
+        validate: 'visudo -cf %s'
+      with_items: "{{ users }}"
+      when: not (item.username in lookup('pipe', 'cut -d: -f1 /etc/passwd'))
