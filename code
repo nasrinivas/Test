@@ -1,3 +1,47 @@
+- name: Ensure users exist and create home directory if needed
+  hosts: localhost
+  become: yes
+  vars:
+    users:
+      - username: testuser2
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDPHxUdodIPT0jfP3AFqK9urGLc/DVJ66/DVPTgjb9/ayROTIzZZFhW+mB0y7VI6DF5a3EinsORy6xJ3zyneiBWlKCsHTR9Sy5AES+S+Ue31CUy9dBaB9HenDXELzuiOVXFjLYY+WSwFX0tFbntzQ5r2LoYeTkFXbUxEUJwkIaHWE3LOJhsz25CHRosyBX471YZG4nMdmXZz6dx9b5Oja9Qkm225heNygtSKlwI+0rKbn2pvIBCENMVj6FKYYuWFp3FoR2ByWirE/XOSmaQuQRYfZRGgG5q1laCqg3SYC8qdnSM8YfkPrrZLj0sxumgiSIkGlzAtYR4EE/fTQxpXitldDN7cKzpMoAeYyf5F4D83eSRRJNWDllV0EiNRYourCJHpAU2Lzmbe4ww8poIrVGnsCAWSVSsRfET/t/DNBoxTGl40qAlPb2KcuPzuG3NRKPZdIRLW1BHvFvVYX2CC89QUvOFN3qjPQ0lev5Dz9f5W3p8CXSV5TXfNodFu4SO1g0= jithu@LAPTOP-0UQTU4PC"
+
+  tasks:
+    - name: Ensure users exist
+      ansible.builtin.shell:
+        cmd: "cut -d: -f1 /etc/passwd"
+      register: output_users_exist
+      changed_when: false
+
+    - name: Create user if it doesn't exist
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        shell: /bin/bash
+        createhome: yes
+      with_items: "{{ users }}"
+      when: not (item.username in output_users_exist.stdout_lines)
+
+    - name: Ensure home directory exists
+      ansible.builtin.file:
+        path: "/home/{{ item.username }}"
+        state: directory
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+        mode: "0755"
+      with_items: "{{ users }}"
+      when: not ansible.builtin.stat(path="/home/{{ item.username }}").exists
+
+    - name: Ensure SSH keys are added for users
+      ansible.builtin.copy:
+        dest: "/home/{{ item.username }}/.ssh/authorized_keys"
+        content: "{{ item.ssh_key }}"
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+        mode: "0600"
+      with_items: "{{ users }}"
+
+
+
 [WARNING]: conditional statements should not include jinja2 templating delimiters such as {{ }} or {% %}. Found: ansible.builtin.stat(path="/home/{{
 item.username }}").stat.exists == False
 fatal: [localhost]: FAILED! => {"msg": "The conditional check 'ansible.builtin.stat(path=\"/home/{{ item.username }}\").stat.exists == False' failed. The error was: Conditional is marked as unsafe, and cannot be evaluated.\n\nThe error appears to be in '/home/ubuntu/ansible/playbook.yml': line 18, column 7, but may\nbe elsewhere in the file depending on the exact syntax problem.\n\nThe offending line appears to be:\n\n\n    - name: Ensure home directory exists\n      ^ here\n"}
