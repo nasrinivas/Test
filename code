@@ -1,4 +1,52 @@
 ---
+- name: Add users with SSH keys and sudo permissions
+  hosts: localhost
+  become: yes
+  vars:
+    users:
+      - username: user1
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB..."
+      - username: user2
+        ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB..."
+      # Add more users as needed
+
+  tasks:
+    - name: Ensure users exist and create home directory if needed
+      block:
+        - name: Ensure users exist
+          ansible.builtin.shell:
+            cmd: "cut -d: -f1 /etc/passwd"
+          register: output_users_exist
+          changed_when: false
+
+        - name: Create home directory if it doesn't exist
+          file:
+            path: "/home/{{ item.username }}"
+            state: directory
+            owner: "{{ item.username }}"
+            group: "{{ item.username }}"
+          with_items: "{{ users }}"
+          when: not (item.username in output_users_exist.stdout_lines)
+
+        - name: Ensure SSH keys are added for users
+          authorized_key:
+            user: "{{ item.username }}"
+            key: "{{ item.ssh_key }}"
+          with_items: "{{ users }}"
+          when: not (item.username in output_users_exist.stdout_lines)
+      become: yes
+
+    - name: Grant sudo permissions to users
+      lineinfile:
+        dest: /etc/sudoers
+        line: "{{ item.username }} ALL=(ALL) NOPASSWD:ALL"
+        validate: 'visudo -cf %s'
+      with_items: "{{ users }}"
+      when: not (item.username in output_users_exist.stdout_lines)
+
+
+
+---
 - name: Mount storage to EC2 instance and format as VDO
   hosts: your_ec2_instance
   become: yes
